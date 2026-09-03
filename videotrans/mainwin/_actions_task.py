@@ -10,9 +10,8 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QMessageBox
 
-from videotrans import recognition
 from videotrans.component.progressbar import ClickableProgressBar
-from videotrans.configure.config import tr, settings, app_cfg
+from videotrans.configure.config import tr, app_cfg
 from videotrans.task.taskcfg import InputFile, SignMsg
 from videotrans.util.help_misc import show_error, shutdown_system
 from videotrans.util.help_ffmpeg import format_video
@@ -235,15 +234,6 @@ class WinActionTaskMixin:
             if currentIndex > 0:
                 self.main.tts_type.setCurrentIndex(0)
                 QTimer.singleShot(100, lambda: self.main.tts_type.setCurrentIndex(currentIndex))
-            return
-        if d['type'] == 'refreshmodel_list' and self.main.recogn_type.currentIndex() in [recognition.FASTER_WHISPER,
-                                                                                         recognition.Faster_Whisper_XXL,
-                                                                                         recognition.Whisper_CPP]:
-            current_model_name = self.main.model_name.currentText()
-            self.main.model_name.clear()
-            self.main.model_name.addItems(
-                settings.Whisper_CPP_MODEL_LIST if self.main.recogn_type.currentIndex() == recognition.Whisper_CPP else settings.WHISPER_MODEL_LIST)
-            self.main.model_name.setCurrentText(current_model_name)
             return
         if d['type'] == 'shitingerror':
             show_error(d['text'])

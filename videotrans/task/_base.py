@@ -3,7 +3,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Union
-from videotrans.configure.config import tr, app_cfg, logger, ROOT_DIR
+from videotrans.configure.config import tr, app_cfg, logger
 from videotrans.configure.base import BaseCon
 from videotrans.task.taskcfg import TaskCfgBase, SrtItem
 
@@ -127,40 +127,3 @@ class BaseTask(BaseCon):
             except Exception as e:
                 logger.exception(f'任务结束后清理临时文件失败，跳过,{e}:{self.cfg.cache_folder=}', exc_info=True)
         app_cfg.stoped_uuid_set.add(self.uuid)
-
-    async def _edgetts_single(self, target_audio, kwargs):
-        from edge_tts import Communicate
-        from io import BytesIO
-        from videotrans.configure.excepts import DubbingSrtError
-
-        useproxy_initial = None if not self.proxy_str or Path(
-            f'{ROOT_DIR}/edgetts-noproxy.txt').exists() else self.proxy_str
-        proxies_to_try = [useproxy_initial]
-        if useproxy_initial is not None:
-            proxies_to_try.append(None)
-
-        for proxy in proxies_to_try:
-            try:
-                audio_buffer = BytesIO()
-                communicate_task = Communicate(
-                    text=kwargs['text'],
-                    voice=kwargs['voice'],
-                    rate=kwargs['rate'],
-                    volume=kwargs['volume'],
-                    proxy=proxy,
-                    pitch=kwargs['pitch']
-                )
-                idx = 0
-                async for chunk in communicate_task.stream():
-                    if chunk["type"] == "audio":
-                        audio_buffer.write(chunk["data"])
-                        self.signal(text=f'{idx} segment')
-                        idx += 1
-                audio_buffer.seek(0)
-                from pydub import AudioSegment
-                au = AudioSegment.from_file(audio_buffer, format="mp3")
-                au.export(target_audio, format='mp3')
-                return
-            except Exception as e:
-                raise DubbingSrtError(f'edge-tts error:{target_audio=}') from e
-        raise DubbingSrtError(f'Dubbing error')

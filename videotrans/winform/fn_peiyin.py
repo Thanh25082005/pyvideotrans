@@ -158,7 +158,7 @@ def openwin():
             return False
 
         # 语言是否支持
-        if tts_type not in  [tts.EDGE_TTS,tts.OMNIVOICE_TTS,tts.G_TTS]:
+        if tts_type not in  []:
             langcode = translator.get_code(show_text=language)
             is_allow_lang_res = tts.is_allow_lang(langcode=langcode, tts_type=tts_type)
 
@@ -255,7 +255,7 @@ def openwin():
         uuid_list = list()
 
     def getlangnamelist(tts_type=0):
-        if tts_type not in [tts.EDGE_TTS,tts.OMNIVOICE_TTS,tts.G_TTS]:
+        if tts_type not in []:
             return   list(translator.LANGNAME_DICT.values())
 
         return  list(EDGE_LANGUANGES_DICT.values())
@@ -273,7 +273,7 @@ def openwin():
             winobj.hecheng_language.setCurrentText(current_text)
 
         winobj.loglabel.setText('')
-        if type not in [tts.EDGE_TTS,tts.OMNIVOICE_TTS,tts.G_TTS]:
+        if type not in []:
             is_allow_lang_res = tts.is_allow_lang(langcode=code, tts_type=type)
             winobj.loglabel.setText(is_allow_lang_res if is_allow_lang_res is not True else '')
 
@@ -282,13 +282,13 @@ def openwin():
         if "clone" in role_list:
             role_list.remove('clone')
         winobj.hecheng_role.addItems(role_list)
-        if type not in [tts.EDGE_TTS,tts.OMNIVOICE_TTS,tts.G_TTS] and tts.is_input_api(tts_type=type) is not True:
+        if type not in [] and tts.is_input_api(tts_type=type) is not True:
             return False
 
     # 合成语言变化，需要获取到角色
     def hecheng_language_fun(t):
         tts_type = winobj.tts_type.currentIndex()
-        if tts_type in [tts.EDGE_TTS,tts.OMNIVOICE_TTS,tts.G_TTS]:
+        if tts_type in []:
             code_list = [key for key, value in EDGE_LANGUANGES_DICT.items() if value == t]
             if not code_list:
                 code = None

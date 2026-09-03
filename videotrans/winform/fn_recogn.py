@@ -5,7 +5,6 @@ def openwin():
     from videotrans.util.help_misc import hide_show_element, show_error
     from typing import List
     from videotrans.task.taskcfg import InputFile
-    import sys
     import json
     from pathlib import Path
     from PySide6 import QtWidgets
@@ -91,8 +90,6 @@ def openwin():
         winobj.has_done = False
         model = winobj.shibie_model.currentText()
         recogn_type = winobj.shibie_recogn_type.currentIndex()
-        if recogn_type == recognition.Faster_Whisper_XXL and not show_xxl_select():
-            return
 
         is_cuda = winobj.is_cuda.isChecked()
         if is_cuda and check_cuda(is_cuda) is not True:
@@ -198,23 +195,6 @@ def openwin():
                 return False
         return True
 
-    def show_xxl_select():
-        if sys.platform != 'win32':
-            show_error(
-                tr("faster-whisper-xxl.exe is only available on Windows"))
-            return False
-        if not settings.get('Faster_Whisper_XXL') or not Path(
-                settings.get('Faster_Whisper_XXL', '')).exists():
-            from PySide6.QtWidgets import QFileDialog
-            exe, _ = QFileDialog.getOpenFileName(winobj,
-                                                 tr("Select faster-whisper-xxl.exe"),
-                                                 'C:/', f'Files(*.exe)')
-            if exe:
-                settings['Faster_Whisper_XXL'] = Path(exe).as_posix()
-                return True
-            return False
-        return True
-
     # 识别类型改变时
     def model_type_change():
         lang = translator.get_code(show_text=winobj.shibie_language.currentText())
@@ -225,8 +205,6 @@ def openwin():
 
     def recogn_type_change():
         recogn_type = winobj.shibie_recogn_type.currentIndex()
-        if recogn_type == recognition.Faster_Whisper_XXL and not show_xxl_select():
-            return
 
         if recogn_type not in recognition.ALLOW_CHANGE_MODEL:  # 可选模型，whisper funasr deepram
             winobj.shibie_model.setDisabled(True)

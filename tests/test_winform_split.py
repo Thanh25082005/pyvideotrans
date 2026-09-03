@@ -36,7 +36,7 @@ def test_each_channel_has_openwin():
 
 
 def test_registered_module_count():
-    assert len(_module_map) >= 60
+    assert len(_module_map) >= 20
 
 
 def test_helpers_factory_returns_callable():

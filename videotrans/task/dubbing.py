@@ -2,7 +2,6 @@ import tempfile
 import datetime
 import re
 import shutil
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -10,7 +9,6 @@ from videotrans import tts
 from videotrans.configure.config import tr, settings, app_cfg, logger, HOME_DIR
 from videotrans.task._base import BaseTask
 from videotrans.task.taskcfg import TaskCfgTTS, SrtItem
-import asyncio
 
 
 """
@@ -100,7 +98,6 @@ class DubbingSrt(BaseTask):
 
     def _tts(self) -> None:
         from videotrans.util.help_srt import get_subtitle_from_srt
-        from videotrans.util.help_ffmpeg import runffmpeg
         queue_tts = []
         # 获取字幕
         try:
@@ -109,45 +106,6 @@ class DubbingSrt(BaseTask):
             rate = 0
 
         rate = f"+{rate}%" if rate >= 0 else f"{rate}%"
-
-        # 如果渠道是 edge-tts,并且非多角色配音
-        _enter_edgetts_single = self.cfg.tts_type == tts.EDGE_TTS and not self.is_multi_role
-        if _enter_edgetts_single:
-            # 配音文件是txt,一次性配音  or  (或者未自动加速 and 移除了字幕间静音)
-            _enter_edgetts_single = self.cfg.target_sub.endswith('.txt') or (
-                        not self.cfg.voice_autorate and self.cfg.remove_silent_mid)
-
-        # edge-tts一次性配音
-        if _enter_edgetts_single:
-            # 忽略对齐
-            self.ignore_align = True
-            self.cfg.target_sub = self._convert_to_utf8_if_needed(self.cfg.target_sub)
-
-            tmp_name = self.cfg.target_wav if self.cfg.target_wav.endswith(
-                '.mp3') else f"{self.cfg.cache_folder}/{self.cfg.noextname}-edgetts-txt-{time.time()}.mp3"
-            if self.cfg.target_sub.endswith('.txt'):
-                text = Path(self.cfg.target_sub).read_text(encoding='utf-8')
-            else:
-                text = ""
-                self.queue_tts = get_subtitle_from_srt(self.cfg.target_sub)
-                for it in self.queue_tts:
-                    text += it["text"] + "\n"
-                self.queue_tts = self.queue_tts[:1]
-            from videotrans.util.help_role import get_edge_rolelist
-            asyncio.run(self._edgetts_single(
-                tmp_name,
-                dict(text=text,
-                     voice=get_edge_rolelist(self.cfg.voice_role, locale=self.cfg.target_language_code),
-                     rate=rate,
-                     volume=self.cfg.volume,
-                     pitch=self.cfg.pitch
-                     )
-            ))
-            logger.debug(f'edge-tts配音，未音频加速，未视频慢速，未强制对齐，已删字幕间静音，使用单独文本配音')
-            if not self.cfg.target_wav.endswith('.mp3'):
-                runffmpeg(['-y', '-i', tmp_name, '-b:a', '128k', self.cfg.target_wav])
-                Path(tmp_name).unlink(missing_ok=True)
-            return
 
         # 如果配音文件是txt，则转为单条字幕形式，以便统一处理
         if self.cfg.target_sub.endswith('.txt'):
@@ -229,12 +187,12 @@ class DubbingSrt(BaseTask):
 
     # 音频加速对齐字幕
     def align(self) -> None:
-        # txt配音并且是 edgetts，已结束
+        # txt配音已结束
         if self.ignore_align: return
         from videotrans.util.help_ffmpeg import runffmpeg
         # 只有一行
         if len(self.queue_tts) < 2:
-            if len(self.queue_tts) == 1 and self.cfg.tts_type != tts.EDGE_TTS:
+            if len(self.queue_tts) == 1:
                 runffmpeg(['-y', '-i', self.queue_tts[0]['filename'], '-b:a', '128k', self.cfg.target_wav])
             return
 

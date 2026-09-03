@@ -64,8 +64,6 @@ AUDIO_EXITS = ["mp3", "wav", "aac", "flac", "m4a", "ogg", "wma"]
 ChatTTS_VOICE = "11,12,16,2222,4444,6653,7869,9999,5,13,14,1111,3333,4099,5099,5555,8888,6666,7777"
 # openai-tts音色
 OPENAITTS_ROLES = "alloy,ash,ballad,coral,echo,fable,onyx,nova,sage,shimmer,verse"
-XAITTS_ROLES = 'eve,ara,rex,sal,leo'
-MITTS_ROLES = 'mimo_default,default_zh,冰糖,茉莉,苏打,白桦,Mia,Milo,Dean,Chloe,default_en'
 
 #-----------默认模型名字-----------------
 FASTER_MODELS_DICT = {
@@ -90,26 +88,12 @@ FASTER_MODELS_DICT = {
     "turbo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
 }
 # funasr模型
-FUNASR_MODEL = ['Fun-ASR-Nano-2512', 'Fun-ASR-MLT-Nano-2512', 'paraformer-zh', 'SenseVoiceSmall']
-QWENASR_LOCAL=['1.7B', '0.6B','CN_Dialect']
 
 # deepgram 支持的语音识别模型
-DEEPGRAM_MODEL = [
-    "nova-3",
-    "whisper-large",
-    "whisper-medium",
-    "whisper-small",
-    "whisper-base",
-    "whisper-tiny",
-    "nova-2",
-    "enhanced",
-    "base",
-]
 
 # 缺省 gemini 模型
 DEFAULT_GEMINI_MODEL = "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-pro-latest,gemini-flash-latest,gemini-2.5-pro,gemini-2.5-flash"
 # gemini-tts 音色
-GEMINITTS_ROLES = "Zephyr,Puck,Charon,Kore,Fenrir,Leda,Orus,Aoede,Callirrhoe,Autonoe,Enceladus,Iapetus,Umbriel,Algieba,Despina,Erinome,Algenib,Rasalgethi,Laomedeia,Achernar,Alnilam,Schedar,Gacrux,Pulcherrima,Achird,Zubenelgenubi,Vindemiatrix,Sadachbia,Sadaltager,Sulafat"
 
 GEMINI_TTS_MODELS = "gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts,gemini-2.5-pro-preview-tts"
 
@@ -149,8 +133,6 @@ XIAOMI_TTS_MODELS = 'mimo-v2.5-tts,mimo-v2-tts'
 
 #--------------模型下载地址-------------------
 # whisper.cpp windows二进制文件
-WHISPER_CPP_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/whisper-cpp-win32.zip'
-WHISPER_CPP_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/whisper-cpp-win32.zip?download=true'
 
 # 内置说话人下载地址
 BUILTINT_URL_MS = [
@@ -186,37 +168,19 @@ DENOISE_URL_HF = [
 UVR_URL_MS = 'https://www.modelscope.cn/models/himyworld/videotrans/resolve/master/onnx/{}'
 UVR_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/onnx/{}?download=true'
 # M2M100模型下载地址
-M2M100_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/m2m100_12b_model.zip'
-M2M100_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/m2m100_12b_model.zip?download=true'
 # ZipVoice-TTS 下载地址
-ZIPVOICE_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/zipvoice-tts.zip'
-ZIPVOICE_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/zipvoice-tts.zip?download=true'
 # VITS-TTS 下载地址
-VITS_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/vits-tts.zip'
-VITS_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/vits-tts.zip?download=true'
 # GPTW 用于 piper-TTS  下载地址
-GPTW_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/G2PWModel-v2-onnx.zip'
-GPTW_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/G2PWModel-v2-onnx.zip?download=true'
 # 小红书语音识别 fireredasr 下载地址
-FIRERED_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/fireredasr2aed.zip'
-FIRERED_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/fireredasr2aed.zip?download=true'
 # dolphine 语音识别模型下载地址
-DOLPHIN_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/dolphin.zip'
-DOLPHIN_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/dolphin.zip?download=true'
 # parakeet-ja日语识别模型下载地址
-PARAKEETJA_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/parakeet-ja.zip'
-PARAKEETJA_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/parakeet-ja.zip?download=true'
 # omnilingual 语音识别模型下载地址
-OMNILINGUAL_URL_MS = 'https://modelscope.cn/models/himyworld/videotrans/resolve/master/omnilingual.zip'
-OMNILINGUAL_URL_HF = 'https://huggingface.co/mortimerme/repocollect/resolve/main/omnilingual.zip?download=true'
 
 # realtime stt
 REALTIME_URL_MS='https://modelscope.cn/models/himyworld/videotrans/resolve/master/realtimestt.zip'
 REALTIME_URL_HF='https://huggingface.co/mortimerme/repocollect/resolve/main/realtimestt.zip?download=true'
 
 # whisper.cpp 模型下载地址
-WHISPERCPP_MODEL_URL_HF='https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}?download=true'
-WHISPERCPP_MODEL_URL_MS='https://modelscope.cn/models/viggocx/whisper.cpp/resolve/master/{}'
 
 #----------Rubberband 库安装提示------------------
 INSTALL_RUBBERBAND_TIPS = """Windows: For Windows systems, please download the file, extract it, and place it in the ffmpeg folder in the current directory. Use a better audio acceleration algorithm\nhttps://breakfastquay.com/files/releases/rubberband-4.0.0-gpl-executable-windows.zip

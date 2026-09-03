@@ -3,13 +3,13 @@ pyVideoTrans CLI — command-line interface for video translation, dubbing, and 
 
 Usage examples:
   # Speech to text
-  uv run cli.py --task stt --name "D:/videos/demo.mp4" --recogn_type 0 --model_name large-v3
+  uv run cli.py --task stt --name "D:/videos/demo.mp4" --recogn_type 0
 
   # Subtitle translation
   uv run cli.py --task sts --name "D:/subs/source.srt" --target_language_code en
 
   # Text to speech
-  uv run cli.py --task tts --name "C:/subs/movie.srt" --tts_type 0 --voice_role "zh-CN-YunyangNeural"
+  uv run cli.py --task tts --name "C:/subs/movie.srt" --tts_type 0 --voice_role "alloy"
 
   # Full video translation
   uv run cli.py --task vtv --name "E:/movies/clip.mp4" --source_language_code zh-cn --target_language_code en --voice_role "en-US-GuyNeural" --cuda
@@ -50,15 +50,15 @@ TEXT_DB: Dict[str, Dict[str, str]] = {
     },
     "cli_epilog": {
         "zh": "示例:\n"
-              "  %(prog)s --task stt --name \"D:/demo.mp4\" --recogn_type 0 --model_name large-v3\n"
-              "  %(prog)s --task tts --name \"D:/demo.srt\" --tts_type 0 --voice_role \"zh-CN-YunyangNeural\"\n"
+              "  %(prog)s --task stt --name \"D:/demo.mp4\" --recogn_type 0\n"
+              "  %(prog)s --task tts --name \"D:/demo.srt\" --tts_type 0 --voice_role \"alloy\"\n"
               "  %(prog)s --task sts --name \"D:/demo.srt\" --target_language_code en\n"
               "  %(prog)s --task vtv --name \"D:/demo.mp4\" --source_language_code zh-cn --target_language_code en --voice_role \"en-US-GuyNeural\"\n"
               "  %(prog)s --list providers\n"
               "  %(prog)s --list languages",
         "en": "Examples:\n"
-              "  %(prog)s --task stt --name \"D:/demo.mp4\" --recogn_type 0 --model_name large-v3\n"
-              "  %(prog)s --task tts --name \"D:/demo.srt\" --tts_type 0 --voice_role \"zh-CN-YunyangNeural\"\n"
+              "  %(prog)s --task stt --name \"D:/demo.mp4\" --recogn_type 0\n"
+              "  %(prog)s --task tts --name \"D:/demo.srt\" --tts_type 0 --voice_role \"alloy\"\n"
               "  %(prog)s --task sts --name \"D:/demo.srt\" --target_language_code en\n"
               "  %(prog)s --task vtv --name \"D:/demo.mp4\" --source_language_code zh-cn --target_language_code en --voice_role \"en-US-GuyNeural\"\n"
               "  %(prog)s --list providers\n"

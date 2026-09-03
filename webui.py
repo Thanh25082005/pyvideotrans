@@ -34,7 +34,7 @@ from videotrans.configure import config
 config.init_run()
 
 from videotrans.configure.config import ROOT_DIR, TEMP_DIR, app_cfg, params, settings
-from videotrans.configure.contants import FASTER_MODELS_DICT, DEEPGRAM_MODEL, Openai_Whisper_Models, FUNASR_MODEL
+from videotrans.configure.contants import FASTER_MODELS_DICT
 from videotrans import recognition, translator, tts
 from videotrans.util import tools
 from videotrans.util.gpus import getset_gpu
@@ -217,125 +217,19 @@ def _safe_get(key, default=""):
 # 渠道设置面板定义
 # ---------------------------------------------------------------------------
 CHANNEL_SETTINGS = {
-    # === 翻译渠道 ===
     "ChatGPT 翻译": {
-        "category": "字幕翻译渠道",
+        "category": "翻译渠道",
         "fields": [
-            {"key": "chatgpt_api", "label": "API URL", "type": "text", "default": "", "placeholder": "留空使用官方API"},
-            {"key": "chatgpt_key", "label": "SK 密钥", "type": "text", "default": "", "placeholder": "API Key"},
-            {"key": "chatgpt_max_token", "label": "最大输出 Token", "type": "text", "default": "8192"},
-            {"key": "chatgpt_model", "label": "模型", "type": "text", "default": "gpt-4o-mini", "placeholder": "输入模型名称"},
+            {"key": "chatgpt_api", "label": "API URL", "type": "text", "default": "https://api.openai.com/v1", "placeholder": "留空使用官方API"},
+            {"key": "chatgpt_key", "label": "SK 密钥", "type": "text", "default": ""},
+            {"key": "chatgpt_model", "label": "模型", "type": "text", "default": "gpt-4.1-mini"},
         ],
     },
-    "DeepSeek 翻译": {
-        "category": "字幕翻译渠道",
+    "自定义翻译 API": {
+        "category": "翻译渠道",
         "fields": [
-            {"key": "deepseek_key", "label": "SK 密钥", "type": "text", "default": "", "placeholder": "API Key"},
-            {"key": "deepseek_model", "label": "模型", "type": "text", "default": "deepseek-chat", "placeholder": "输入模型名称"},
-            {"key": "deepseek_max_token", "label": "最大输出 Token", "type": "text", "default": "8192"},
-        ],
-    },
-    "Gemini 翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "gemini_key", "label": "Gemini Key", "type": "text", "default": ""},
-            {"key": "gemini_model", "label": "模型", "type": "text", "default": "gemini-2.5-flash", "placeholder": "输入模型名称"},
-            {"key": "gemini_maxtoken", "label": "最大 Token", "type": "text", "default": "8192"},
-        ],
-    },
-    "AzureGPT 翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "azure_api", "label": "API URL", "type": "text", "default": ""},
-            {"key": "azure_key", "label": "SK 密钥", "type": "text", "default": ""},
-            {"key": "azure_model", "label": "模型", "type": "text", "default": "gpt-4o-mini", "placeholder": "输入模型名称"},
-        ],
-    },
-    "本地大模型 (LocalLLM)": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "localllm_api", "label": "API URL", "type": "text", "default": "http://127.0.0.1:11434/v1", "placeholder": "如 http://127.0.0.1:11434/v1"},
-            {"key": "localllm_key", "label": "SK 密钥", "type": "text", "default": "no-key", "placeholder": "通常填 no-key"},
-            {"key": "localllm_max_token", "label": "最大输出 Token", "type": "text", "default": "8192"},
-            {"key": "localllm_model", "label": "模型", "type": "text", "default": "", "placeholder": "输入模型名称"},
-        ],
-    },
-    "DeepL 翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "deepl_authkey", "label": "AUTH KEY", "type": "text", "default": ""},
-            {"key": "deepl_api", "label": "API URL (第三方)", "type": "text", "default": "", "placeholder": "留空使用官方API"},
-            {"key": "deepl_gid", "label": "术语表 ID", "type": "text", "default": ""},
-        ],
-    },
-    "百度翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "baidu_appid", "label": "App ID", "type": "text", "default": ""},
-            {"key": "baidu_miyue", "label": "密钥", "type": "text", "default": ""},
-        ],
-    },
-    "腾讯翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "tencent_SecretId", "label": "SecretId", "type": "text", "default": ""},
-            {"key": "tencent_SecretKey", "label": "SecretKey", "type": "text", "default": ""},
-        ],
-    },
-    "阿里百炼 (QwenMT)": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "qwenmt_key", "label": "百炼 SK", "type": "text", "default": ""},
-            {"key": "qwenmt_model", "label": "翻译模型", "type": "text", "default": "qwen-mt-plus", "placeholder": "需以 qwen-mt 开头"},
-            {"key": "qwenmt_asr_model", "label": "语音识别模型", "type": "text", "default": "qwen3-asr-flash", "placeholder": "需以 qwen3-asr 开头"},
-        ],
-    },
-    "字节火山 (VolcEngine)": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "zijiehuoshan_key", "label": "SK 密钥", "type": "text", "default": ""},
-            {"key": "zijiehuoshan_model", "label": "推理接入点", "type": "text", "default": "", "placeholder": "输入接入点名称"},
-        ],
-    },
-    "MiniMax 翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "minimax_key", "label": "SK 密钥", "type": "text", "default": ""},
-            {"key": "minimax_api", "label": "API URL", "type": "text", "default": "api.minimax.io"},
-            {"key": "minimax_model", "label": "模型", "type": "text", "default": "MiniMax-M3", "placeholder": "输入模型名称"},
-            {"key": "minimax_max_tokens", "label": "最大输出 Token", "type": "text", "default": "8192"},
-        ],
-    },
-    "智谱 AI 翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "zhipu_key", "label": "SK 密钥", "type": "text", "default": ""},
-            {"key": "zhipu_model", "label": "模型", "type": "text", "default": "glm-4-flash", "placeholder": "输入模型名称"},
-            {"key": "zhipu_max_token", "label": "最大输出 Token", "type": "text", "default": "8192"},
-        ],
-    },
-    "硅基流动 (SiliconFlow)": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "guiji_key", "label": "SK 密钥", "type": "text", "default": ""},
-            {"key": "guiji_model", "label": "模型", "type": "text", "default": "Qwen/Qwen3-32B", "placeholder": "输入模型名称"},
-            {"key": "guiji_max_token", "label": "最大输出 Token", "type": "text", "default": "8192"},
-        ],
-    },
-    "OpenRouter 翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "openrouter_key", "label": "SK 密钥", "type": "text", "default": ""},
-            {"key": "openrouter_model", "label": "模型", "type": "text", "default": "", "placeholder": "输入模型名称"},
-            {"key": "openrouter_max_token", "label": "最大输出 Token", "type": "text", "default": "8192"},
-        ],
-    },
-    "小米 AI 翻译": {
-        "category": "字幕翻译渠道",
-        "fields": [
-            {"key": "xiaomi_key", "label": "小米 Key", "type": "text", "default": ""},
-            {"key": "xiaomi_model", "label": "模型", "type": "text", "default": "mimo-v2.5-pro", "placeholder": "输入模型名称"},
-            {"key": "xiaomi_maxtoken", "label": "最大 Token", "type": "text", "default": "8192"},
+            {"key": "trans_api_url", "label": "API URL", "type": "text", "default": ""},
+            {"key": "trans_api_key", "label": "API Key", "type": "text", "default": ""},
         ],
     },
 
@@ -348,23 +242,17 @@ CHANNEL_SETTINGS = {
             {"key": "openairecognapi_model", "label": "模型", "type": "text", "default": "whisper-1", "placeholder": "输入模型名称"},
         ],
     },
-    "Deepgram ASR": {
+    "STT API": {
         "category": "语音识别渠道",
         "fields": [
-            {"key": "deepgram_apikey", "label": "API Key", "type": "text", "default": ""},
+            {"key": "stt_url", "label": "API URL", "type": "text", "default": ""},
         ],
     },
-    "Parakeet ASR": {
+    "自定义识别 API": {
         "category": "语音识别渠道",
         "fields": [
-            {"key": "parakeet_address", "label": "API URL", "type": "text", "default": "http://127.0.0.1:8080"},
-        ],
-    },
-    "字节语音识别": {
-        "category": "语音识别渠道",
-        "fields": [
-            {"key": "zijierecognmodel_appid", "label": "AppID", "type": "text", "default": ""},
-            {"key": "zijierecognmodel_token", "label": "Access Token", "type": "text", "default": ""},
+            {"key": "recognapi_url", "label": "API URL", "type": "text", "default": ""},
+            {"key": "recognapi_key", "label": "API Key", "type": "text", "default": ""},
         ],
     },
 
@@ -377,78 +265,12 @@ CHANNEL_SETTINGS = {
             {"key": "openaitts_model", "label": "模型", "type": "text", "default": "tts-1", "placeholder": "输入模型名称"},
         ],
     },
-    "Azure TTS": {
+    "自定义配音 API": {
         "category": "配音渠道",
         "fields": [
-            {"key": "azure_speech_key", "label": "SPEECH KEY", "type": "text", "default": ""},
-            {"key": "azure_speech_region", "label": "Region / URL", "type": "text", "default": "eastasia", "placeholder": "如 eastasia 或完整URL"},
-        ],
-    },
-    "ElevenLabs TTS": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "elevenlabstts_key", "label": "API Key", "type": "text", "default": ""},
-        ],
-    },
-    "GPT-SoVITS": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "gptsovits_url", "label": "API URL", "type": "text", "default": "http://127.0.0.1:9880"},
-        ],
-    },
-    "Spark / Index / VoxCPM": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "sparktts_url", "label": "Spark-TTS URL", "type": "text", "default": "http://127.0.0.1:7860"},
-            {"key": "indextts_url", "label": "Index-TTS URL", "type": "text", "default": "http://127.0.0.1:7860"},
-            {"key": "voxcpmtts_url", "label": "VoxCPM URL", "type": "text", "default": "http://127.0.0.1:7860"},
-        ],
-    },
-    "CosyVoice TTS": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "cosyvoice_url", "label": "WebUI URL", "type": "text", "default": "http://127.0.0.1:8000"},
-            {"key": "cosyvoice_instruct_text", "label": "Prompt 提示词", "type": "text", "default": ""},
-        ],
-    },
-
-    "阿里百炼 TTS (Qwen-TTS)": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "qwentts_key", "label": "百炼 SK", "type": "text", "default": ""},
-            {"key": "qwentts_model", "label": "模型", "type": "text", "default": "qwen3-tts-flash", "placeholder": "输入模型名称"},
-        ],
-    },
-    "Qwen-TTS 本地": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "qwenttslocal_prompt", "label": "自定义语音提示词", "type": "text", "default": ""},
-        ],
-    },
-    "豆包语音合成 2.0": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "doubao2_appid", "label": "App ID", "type": "text", "default": ""},
-            {"key": "doubao2_access", "label": "Access Token", "type": "text", "default": ""},
-        ],
-    },
-    "Minimaxi TTS": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "minimaxi_apikey", "label": "SK 密钥", "type": "text", "default": ""},
-            {"key": "minimaxi_apiurl", "label": "API URL", "type": "text", "default": "api.minimaxi.com"},
-        ],
-    },
-    "X.AI TTS": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "xaitts_key", "label": "SK 密钥", "type": "text", "default": ""},
-        ],
-    },
-    "小米 TTS": {
-        "category": "配音渠道",
-        "fields": [
-            {"key": "xiaomi_key", "label": "小米 Key", "type": "text", "default": ""},
+            {"key": "ttsapi_url", "label": "API URL", "type": "text", "default": ""},
+            {"key": "ttsapi_voice_role", "label": "可用角色(逗号分隔)", "type": "text", "default": ""},
+            {"key": "ttsapi_extra", "label": "额外参数", "type": "text", "default": "pyvideotrans"},
         ],
     },
 }
@@ -993,30 +815,9 @@ def build_ui():
                         gr.Warning(msg)
                         return prev, f"⚠️ {msg}", gr.update()
 
-                    # 根据渠道更新模型下拉框
+                    # Các kênh còn lại đều tự khai model trong phần cài đặt kênh
                     models = []
-                    disabled = False
-                    print(f'{idx=}')
-                    print(f'{recognition.Whisper_CPP=}')
-                    if idx in [recognition.FASTER_WHISPER, recognition.Faster_Whisper_XXL, recognition.WHISPERX_API]:
-                        models = settings.WHISPER_MODEL_LIST
-                    elif idx == recognition.OPENAI_WHISPER:
-                        models = Openai_Whisper_Models.split(',')
-                    elif idx == recognition.Deepgram:
-                        models = DEEPGRAM_MODEL
-                    elif idx == recognition.Whisper_CPP:
-                        models = settings.Whisper_CPP_MODEL_LIST
-                    elif idx == recognition.WHISPER_NET:
-                        models = settings.Whisper_NET_MODEL_LIST
-                    elif idx == recognition.QWENASR:
-                        models = ['1.7B', '0.6B']
-                    elif idx == recognition.HUGGINGFACE_ASR:
-                        models = list(recognition.HUGGINGFACE_ASR_MODELS.keys())
-                    elif idx == recognition.FUNASR_CN:
-                        models = FUNASR_MODEL
-                    else:
-                        models = FASTER_MODEL_NAMES
-                        disabled = True
+                    disabled = True
 
                     if models:
                         default_val = models[0] if models else ""

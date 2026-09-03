@@ -106,7 +106,7 @@ class WinActionCheckMixin:
         return True
 
     def check_start(self):
-        from videotrans import recognition, translator
+        from videotrans import translator
         if app_cfg.current_status == 'ing':
             self.update_status('stop')
             return
@@ -143,9 +143,6 @@ class WinActionCheckMixin:
         self.cfg['pitch'] = f'+{pitch}Hz' if pitch >= 0 else f'{pitch}Hz'
 
         self.cfg['recogn_type'] = self.main.recogn_type.currentIndex()
-        if self.cfg['recogn_type'] == recognition.Faster_Whisper_XXL and not self.show_xxl_select():
-            self.main.startbtn.setDisabled(False)
-            return
         self.cfg['model_name'] = self.main.model_name.currentText()
         self.cfg['remove_noise'] = self.main.remove_noise.isChecked()
 
@@ -222,7 +219,7 @@ class WinActionCheckMixin:
         self.cfg['app_mode'] = self.main.app_mode
         self.cfg['output_srt'] = self.main.output_srt.currentIndex()
 
-        if self.main.recogn_type.currentIndex() == recognition.FASTER_WHISPER or self.main.app_mode == 'biaozhun':
+        if self.main.app_mode == 'biaozhun':
             self.cfg['loop_backaudio'] = self.main.is_loop_bgm.currentIndex()
             try:
                 self.cfg['backaudio_volume'] = float(self.main.bgmvolume.text())

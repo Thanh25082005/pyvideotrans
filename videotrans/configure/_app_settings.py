@@ -117,7 +117,6 @@ class AppSettings:
         return {
             "homedir": ROOT_DIR + "/output",
             "lang": "",
-            "Faster_Whisper_XXL": "",
             "Whisper_cpp": "",
             "Whisper_cpp_models": Whisper_cpp_models,
             "Whisper_net_models": Whisper_cpp_models,

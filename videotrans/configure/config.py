@@ -47,4 +47,3 @@ def init_run():
     Path(f"{TEMP_DIR}").mkdir(parents=True, exist_ok=True)
     Path(f'{TEMP_ROOT}/translate_cache').mkdir(exist_ok=True, parents=True)
     Path(f'{ROOT_DIR}/models').mkdir(exist_ok=True, parents=True)
-    Path(f'{ROOT_DIR}/f5-tts').mkdir(exist_ok=True, parents=True)

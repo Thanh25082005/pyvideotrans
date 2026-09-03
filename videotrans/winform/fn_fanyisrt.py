@@ -203,22 +203,9 @@ def openwin():
     # 显示模型列表
     def show_model_list():
         idx = winobj.fanyi_translate_type.currentIndex()
-        if idx == translator.LOCALLLM_INDEX:
-            model_list = settings.get('localllm_model','').strip().split(',')
-            current_model = params["localllm_model"]
-        elif idx == translator.GEMINI_INDEX:
-            model_list = settings.get('gemini_model','').strip().split(',')
-            current_model = params["gemini_model"]
-        elif idx == translator.CHATGPT_INDEX:
+        if idx == translator.CHATGPT_INDEX:
             model_list = settings.get('chatgpt_model','').strip().split(',')
             current_model = params["chatgpt_model"]
-        elif idx == translator.AZUREGPT_INDEX:
-            model_list = settings.get('azure_model','').strip().split(',')
-            current_model = params["azure_model"]
-        elif idx == translator.ZIJIE_INDEX:
-            model_list = settings.get('zijiehuoshan_model','').strip().split(',')
-            current_model = params["zijiehuoshan_model"]
-
         else:
             winobj.fanyi_model_list.setVisible(False)
             return
@@ -233,16 +220,8 @@ def openwin():
     def model_change():
         idx = winobj.fanyi_translate_type.currentIndex()
         model_name = winobj.fanyi_model_list.currentText()
-        if idx == translator.LOCALLLM_INDEX:
-            params["localllm_model"] = model_name
-        elif idx == translator.GEMINI_INDEX:
-            params["gemini_model"] = model_name
-        elif idx == translator.CHATGPT_INDEX:
+        if idx == translator.CHATGPT_INDEX:
             params["chatgpt_model"] = model_name
-        elif idx == translator.AZUREGPT_INDEX:
-            params["azure_model"] = model_name
-        elif idx == translator.ZIJIE_INDEX:
-            params["zijiehuoshan_model"] = model_name
 
         params.save()
 

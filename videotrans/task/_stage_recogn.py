@@ -9,7 +9,7 @@ import os
 from videotrans.configure.config import tr, ROOT_DIR, settings, logger
 from videotrans.configure.contants import DENOISE_URL_MS, PUNC_RESTORE_MS, DENOISE_URL_HF, PUNC_RESTORE_HF
 from videotrans.configure.excepts import SpeechToTextError
-from videotrans.recognition import run as run_recogn, is_allow_lang as recogn_allow_lang, FASTER_WHISPER
+from videotrans.recognition import run as run_recogn, is_allow_lang as recogn_allow_lang
 from videotrans.util.help_ffmpeg import conver_to_16k, runffmpeg, cut_from_audio
 from videotrans.util.help_misc import vail_file, is_connect_hf
 from videotrans.util.help_srt import get_subtitle_from_srt, delete_punc
@@ -172,8 +172,8 @@ class RecognMixin:
             if recogn_allow_lang(langcode=self.cfg.target_language_code,
                                  recogn_type=recogn_type,
                                  model_name=model_name) is not True:
-                recogn_type = FASTER_WHISPER
-                model_name = 'large-v3-turbo'
+                logger.debug('二次识别：当前渠道不支持目标语言，跳过')
+                return
 
             raw_subtitles = run_recogn(
                 recogn_type=recogn_type,
