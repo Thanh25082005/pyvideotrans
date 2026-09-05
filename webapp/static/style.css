@@ -139,3 +139,86 @@ a.dl {
 }
 a.dl:hover { border-color: var(--accent); }
 a.dl.main { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+/* ------------------------------------------------- word-level timestamps */
+.words {
+  max-height: 460px; overflow-y: auto; padding: 4px; border-radius: 10px;
+  background: #0b0d13; border: 1px solid var(--line);
+  font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; font-size: 12px;
+}
+.words:empty::after { content: "Chưa có dữ liệu căn từ."; color: var(--muted); padding: 12px; display: block; }
+.wseg { border-bottom: 1px solid var(--line); padding: 10px 10px 12px; }
+.wseg:last-child { border-bottom: 0; }
+.wseg.bad { background: rgba(255, 107, 107, .07); border-left: 2px solid var(--err); }
+.wseg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.wseg-line { color: var(--accent-2); font-weight: 600; }
+.wseg-head .k { color: #5c6478; }
+/* Câu thoại dùng font sans để tiếng Việt có dấu đọc được, khác với cột số liệu mono */
+.wseg-text { color: var(--muted); margin: 6px 0 8px; white-space: pre-wrap; font-family: inherit; font-size: 13px; }
+.wseg-text, .wseg-warn { font-family: "Inter", "Segoe UI", system-ui, -apple-system, "Noto Sans", sans-serif; }
+.wseg-warn { color: var(--err); margin: 0 0 8px; }
+.wchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wchip {
+  display: inline-grid; gap: 1px; padding: 4px 8px; border-radius: 7px;
+  background: var(--panel-2); border: 1px solid var(--line); line-height: 1.35;
+}
+.wchip b { font-weight: 600; }
+.wchip span { color: #5c6478; font-size: 11px; }
+.wchip.flag { border-color: var(--err); background: rgba(255, 107, 107, .12); }
+.wchip.fixed { border-color: var(--ok); background: rgba(46, 204, 113, .10); }
+.wchip .fixed { color: var(--ok); font-size: 11px; text-decoration: line-through; }
+.wchip.flag span { color: var(--err); }
+.delta.late { color: var(--warn); }
+.delta.ok { color: var(--ok); }
+.words-empty { color: var(--muted); padding: 12px; }
+#words-filter { flex: 1; min-width: 180px; }
+
+/* --- slider tuỳ chọn nâng cao + bảng token --- */
+.val {
+  float: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: .75;
+}
+input[type="range"] { width: 100%; accent-color: var(--accent, #4f8cff); }
+
+.tokens {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line, #2a3040);
+  border-radius: 10px;
+}
+.tokens h3 { margin: 0 0 10px; font-size: 14px; }
+.tokens > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.tokens > div b { font-variant-numeric: tabular-nums; }
+.tokens .cost {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #2a3040);
+  font-size: 14px;
+}
+.tokens .hint { margin: 8px 0 0; }
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft, #12151f);
+  color: inherit;
+}
+textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.val.err { color: #ff6b6b; }
+
+/* Lối vào trình chỉnh sửa, ngay cạnh các nút tải về */
+.dl.edit { background: var(--accent); border-color: var(--accent); color: #fff; }
+.dl.edit:hover { background: var(--accent-2); }

@@ -106,3 +106,13 @@ Cuối bước căn chỉnh, log in ra:
 | Nhiều câu không vào đúng mốc, lệch lớn | Bản dịch dài hơn khung nhiều | Prompt đã ép nén; thử model mạnh hơn, hoặc chọn ngôn ngữ đích súc tích hơn |
 | Nhiều câu phải atempo | Trần tốc độ native (1,5) không đủ | Tăng *Kéo giãn tối đa*, chấp nhận giọng méo hơn |
 | Lệch trung bình gần 0 nhưng nghe vẫn sai chỗ | VAD cắt câu sai | Chỉnh `min_speech_ms` / `min_silence_ms` trong `webapp/data/config.json` |
+
+## Binary search và audio gốc
+
+Nếu câu vẫn dài sau lần sinh đầu, pipeline thử các mức `speed` trong khoảng hiện tại đến 1,5
+bằng tìm kiếm nhị phân (mặc định tối đa 4 lần), rồi giữ kết quả gần khung thời gian nhất.
+`dit_steps` được giữ cố định vì đây là tham số chất lượng/chi phí và không có quan hệ đơn điệu
+ổn định với thời lượng audio, nên không phù hợp để tìm kiếm nhị phân.
+
+Khi xuất video, audio gốc được trộn dưới track lồng tiếng ở mức mặc định 35%; có thể tắt bằng
+ô **Giữ audio gốc làm nền**.

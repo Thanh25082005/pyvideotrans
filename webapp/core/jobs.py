@@ -31,6 +31,7 @@ class Job:
     error: str = ""
     result: Dict = field(default_factory=dict)
     previews: Dict = field(default_factory=dict)
+    words: Dict = field(default_factory=dict)   # báo cáo word-level timestamps cho UI
     logs: List[Dict] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     started_at: float = 0.0
@@ -62,6 +63,24 @@ class Job:
     def set_preview(self, key: str, text: str) -> None:
         with self._lock:
             self.previews[key] = text
+
+    def set_words(self, report: Dict) -> None:
+        """Gắn báo cáo căn từ. Pipeline giữ nguyên object nên UI đọc được ngay khi đang chạy."""
+        with self._lock:
+            self.words = report
+
+    def words_snapshot(self) -> Dict:
+        with self._lock:
+            report = self.words
+            if not report:
+                return {"segments": [], "running": self.status == "running"}
+            return {
+                "model": report.get("model", ""),
+                "language": list(report.get("language", [])),
+                "segments": list(report.get("segments", [])),
+                "done": bool(report.get("done")),
+                "running": self.status == "running",
+            }
 
     @property
     def cancelled(self) -> bool:
@@ -112,8 +131,13 @@ class JobManager:
         while len(self.order) > self.max_history:
             old_id = self.order.pop(0)
             old = self.jobs.pop(old_id, None)
-            if old and old.status in ("done", "error", "cancelled"):
-                shutil.rmtree(job_dir(old_id), ignore_errors=True)
+            if not old or old.status not in ("done", "error", "cancelled"):
+                continue
+            # Job đã có dữ liệu chỉnh sửa thì giữ lại: người dùng còn đang sửa tay,
+            # xoá đi là mất hết clip từng câu. Dọn bằng nút xoá trong trình chỉnh sửa.
+            if (job_dir(old_id) / "edit" / "project.json").exists():
+                continue
+            shutil.rmtree(job_dir(old_id), ignore_errors=True)
 
     def get(self, job_id: str) -> Optional[Job]:
         return self.jobs.get(job_id)

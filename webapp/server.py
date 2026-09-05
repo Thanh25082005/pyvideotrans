@@ -17,7 +17,9 @@ from fastapi import FastAPI, Form, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from core import langs
+from core import editor, langs
+from core.editor import EditorError
+from core.forced_aligner import ForcedAlignerError, QwenForcedAlignerClient
 from core.jobs import manager
 from core.settings import DATA_DIR, job_dir, load_config, save_config
 from core.stt_loli import LoliSTT
@@ -33,9 +35,29 @@ app = FastAPI(title="pyVideoTrans WebApp", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+@app.middleware("http")
+async def revalidate_assets(request, call_next):
+    """Bắt trình duyệt hỏi lại server mỗi lần lấy html/css/js.
+
+    Không có header này, trình duyệt được phép tự đoán thời hạn cache và dùng lại
+    file cũ mà không hỏi. Sửa code xong thì gặp cảnh HTML mới đi cùng JS cũ:
+    trang vẫn hiện nút mới nhưng bấm không ăn, mà console cũng chẳng báo gì rõ.
+    `no-cache` không tắt cache - chỉ buộc kiểm tra lại, file không đổi vẫn trả 304.
+    """
+    response = await call_next(request)
+    if request.url.path.startswith("/static") or request.url.path in ("/", "/editor"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.get("/")
 def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/editor")
+def editor_page():
+    return FileResponse(STATIC_DIR / "editor.html")
 
 
 @app.get("/favicon.ico")
@@ -101,6 +123,18 @@ def languages():
     return {"source": langs.stt_language_list(), "target": langs.target_language_list()}
 
 
+@app.get("/api/aligner/status")
+def aligner_status():
+    cfg = load_config().get("aligner", {})
+    if not cfg.get("enabled", True):
+        return {"ok": False, "enabled": False, "message": "Qwen Forced Aligner đang tắt"}
+    try:
+        status = QwenForcedAlignerClient(cfg.get("base_url", "http://127.0.0.1:8200")).health()
+        return {**status, "enabled": True}
+    except ForcedAlignerError as exc:
+        return {"ok": False, "enabled": True, "message": str(exc)}
+
+
 # --------------------------------------------------------------------- job
 @app.post("/api/jobs")
 async def create_job(
@@ -109,9 +143,15 @@ async def create_job(
     target_lang: str = Form("vi"),
     voice_id: str = Form(""),
     speed: float = Form(1.0),
-    dit_steps: int = Form(10),
+    dit_steps: int = Form(16),
     max_audio_speed: float = Form(1.6),
+    background_volume: float = Form(-1.0),
+    dubbed_volume: float = Form(1.0),
+    background_source: str = Form("auto"),
+    original_voice_volume: float = Form(0.0),
+    instruction: str = Form(""),
     voice_autorate: bool = Form(True),
+    mix_original_audio: bool = Form(True),
     resynth: bool = Form(True),
     burn_subtitle: bool = Form(False),
     soft_subtitle: bool = Form(False),
@@ -134,9 +174,19 @@ async def create_job(
         "target_lang": target_lang,
         "voice_id": voice_id.strip(),
         "speed": speed,
-        "dit_steps": dit_steps,
+        # Loly nhận dit_steps 1-64; càng cao giọng càng mượt và càng tốn quota
+        "dit_steps": max(1, min(int(dit_steps), 64)),
         "max_audio_speed": max_audio_speed,
+        # <0 nghĩa là "dùng mặc định của cấu hình" (khác 0 = tắt hẳn tiếng nền)
+        "background_volume": None if background_volume < 0 else background_volume,
+        "dubbed_volume": dubbed_volume,
+        "background_source": (background_source or "auto").strip().lower(),
+        # 0 = thay hẳn giọng gốc (lồng tiếng thường); >0 = giọng gốc phát cùng TTS
+        "original_voice_volume": original_voice_volume,
+        # Rỗng = dùng chỉ thị chung trong cấu hình
+        "instruction": (instruction or "").strip(),
         "voice_autorate": voice_autorate,
+        "mix_original_audio": mix_original_audio,
         "resynth": resynth,
         "burn_subtitle": burn_subtitle,
         "soft_subtitle": soft_subtitle,
@@ -185,6 +235,15 @@ def job_subtitles(job_id: str, kind: str):
     return {"text": job.previews.get(kind, "")}
 
 
+@app.get("/api/jobs/{job_id}/words")
+def job_words(job_id: str):
+    """Word-level timestamps cho UI - đọc được ngay trong lúc job còn đang chạy."""
+    job = manager.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Không tìm thấy job")
+    return job.words_snapshot()
+
+
 def _output_file(job_id: str, name: str) -> Path:
     base = (job_dir(job_id) / "output").resolve()
     path = (base / name).resolve()
@@ -201,6 +260,116 @@ def job_file(job_id: str, kind: str, download: int = 0):
     name = job.result.get(kind)
     if not name:
         raise HTTPException(status_code=404, detail="Kết quả chưa sẵn sàng")
+    path = _output_file(job_id, name)
+    return FileResponse(path, filename=path.name if download else None)
+
+
+# ------------------------------------------------------- trình chỉnh sửa
+@app.exception_handler(EditorError)
+def editor_error(_request, exc):
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.get("/api/projects")
+def project_list():
+    """Đọc thẳng từ đĩa nên job cũ vẫn mở lại được sau khi restart server."""
+    return {"projects": editor.list_projects()}
+
+
+@app.get("/api/projects/{job_id}")
+def project_get(job_id: str):
+    return {"project": editor.load(job_id)}
+
+
+@app.put("/api/projects/{job_id}")
+async def project_update(job_id: str, payload: dict):
+    return {"project": editor.update(job_id, payload)}
+
+
+@app.delete("/api/projects/{job_id}")
+def project_delete(job_id: str):
+    editor.delete(job_id)
+    return {"ok": True}
+
+
+@app.get("/api/projects/{job_id}/peaks/{name}")
+def project_peaks(job_id: str, name: str):
+    if name not in ("original", "clips"):
+        raise HTTPException(status_code=404, detail="Không có đường bao sóng này")
+    return FileResponse(editor.resolve(job_id, f"edit/peaks/{name}.json"), media_type="application/json")
+
+
+@app.get("/api/projects/{job_id}/media/{path:path}")
+def project_media(job_id: str, path: str):
+    return FileResponse(editor.resolve(job_id, path))
+
+
+@app.post("/api/projects/{job_id}/segments/{seg_id}/regen")
+async def project_regen(job_id: str, seg_id: int, payload: Optional[dict] = None):
+    body = payload or {}
+    return editor.regenerate(
+        job_id, seg_id,
+        text=body.get("text"),
+        speed=body.get("speed"),
+        fit=bool(body.get("fit")),
+        fit_ms=body.get("fit_ms"),
+        voice_id=body.get("voice_id"),
+        dit_steps=body.get("dit_steps"),
+    )
+
+
+@app.post("/api/projects/{job_id}/segments")
+async def project_add_segment(job_id: str, payload: dict):
+    """Chèn một câu do người dùng tự gõ lời rồi đọc luôn - chỉ tốn một request TTS."""
+    return editor.add_segment(
+        job_id,
+        start_ms=int(payload.get("start_ms") or 0),
+        end_ms=int(payload.get("end_ms") or 0),
+        text=str(payload.get("text") or ""),
+        source_text=str(payload.get("source_text") or ""),
+    )
+
+
+@app.post("/api/projects/{job_id}/range")
+async def project_range(job_id: str, payload: dict):
+    """Gen lại các đoạn đã khoanh: dịch lại + đọc lại mọi câu trong đó, rồi ghép lại video.
+
+    Nhận `ranges: [{start_ms, end_ms}, ...]` (nhiều box trên dải Audio gốc) hoặc
+    một cặp `start_ms`/`end_ms` cho tiện gọi tay. Chạy nền, tiến độ xem chung ở
+    GET /api/projects/{job_id}/render.
+    """
+    raw = payload.get("ranges")
+    if not isinstance(raw, list) or not raw:
+        raw = [{"start_ms": payload.get("start_ms"), "end_ms": payload.get("end_ms")}]
+    try:
+        ranges = [(int(item.get("start_ms") or 0), int(item.get("end_ms") or 0)) for item in raw]
+    except (AttributeError, TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Danh sách đoạn không hợp lệ")
+    return editor.start_range_regen(
+        job_id, ranges,
+        translate=payload.get("translate", True) is not False,
+        fit=payload.get("fit", True) is not False,
+        render_after=payload.get("render_after", True) is not False,
+        asr=bool(payload.get("asr")),
+    )
+
+
+@app.post("/api/projects/{job_id}/render")
+def project_render(job_id: str):
+    editor.load(job_id)  # báo lỗi sớm nếu project hỏng
+    return editor.start_render(job_id)
+
+
+@app.get("/api/projects/{job_id}/render")
+def project_render_status(job_id: str):
+    return editor.render_status(job_id)
+
+
+@app.get("/api/projects/{job_id}/download")
+def project_download(job_id: str, download: int = 1):
+    name = (editor.load(job_id).get("output") or {}).get("name")
+    if not name:
+        raise HTTPException(status_code=404, detail="Chưa render bản chỉnh sửa nào")
     path = _output_file(job_id, name)
     return FileResponse(path, filename=path.name if download else None)
 

@@ -1,0 +1,222 @@
+/* Trình chỉnh sửa lồng tiếng: video + hai đường sóng + các box câu kéo được */
+.editor-page { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+/* style.css đặt display cho main/.panel nên phải giành lại quyền của thuộc tính hidden */
+.editor-page [hidden] { display: none !important; }
+.editor-page .topbar { flex: none; }
+.editor-page .logo { text-decoration: none; color: #fff; }
+
+.picker { overflow: auto; padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; }
+.picker-list { display: grid; gap: 8px; }
+.picker-item {
+  display: flex; align-items: center; gap: 14px; padding: 12px 14px; text-decoration: none;
+  color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+}
+.picker-item:hover { border-color: var(--accent); }
+.picker-item .name { font-weight: 600; }
+.picker-item .meta { color: var(--muted); font-size: 12px; margin-left: auto; text-align: right; }
+
+.workspace {
+  flex: 1; min-height: 0; display: grid; gap: 12px; padding: 12px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: "stage inspector" "timeline timeline";
+  max-width: none; margin: 0;
+}
+@media (max-width: 1100px) {
+  .workspace { grid-template-columns: 1fr; grid-template-areas: "stage" "inspector" "timeline"; }
+}
+
+/* ---------------------------------------------------------------- video */
+.stage { grid-area: stage; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.video-wrap {
+  flex: 1; min-height: 0; display: grid; place-items: center;
+  background: #000; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+}
+.video-wrap video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.transport {
+  flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.transport .spacer { flex: 1; }
+.transport #btn-play { width: 42px; padding: 8px 0; text-align: center; }
+label.inline { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+label.inline input[type=range] { width: 90px; }
+
+/* ------------------------------------------------------------ inspector */
+.inspector {
+  grid-area: inspector; overflow: auto; display: flex; flex-direction: column; gap: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px;
+}
+.inspector h3 { font-size: 14px; color: var(--accent-2); }
+.inspector .row.between { display: flex; align-items: baseline; justify-content: space-between; }
+.inspector #inspector-body { display: grid; gap: 12px; }
+.inspector textarea {
+  width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line);
+  background: #12151d; color: var(--text); font: inherit; font-size: 13px; resize: vertical;
+}
+.inspector textarea:focus { outline: 2px solid rgba(108,92,231,.5); border-color: var(--accent); }
+.seg-orig {
+  font-size: 12px; color: var(--muted); background: #12151d; border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 10px; max-height: 90px; overflow: auto;
+}
+.seg-stats { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.seg-stats b { color: var(--text); font-weight: 600; }
+.seg-stats .bad { color: var(--warn); }
+.empty .keys { display: grid; gap: 6px; padding-left: 16px; margin: 10px 0 0; }
+.mix-box { margin-top: auto; border-top: 1px solid var(--line); padding-top: 10px; }
+.mix-box summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.mix-box[open] summary { color: var(--accent-2); }
+.mix-body { display: grid; gap: 10px; padding-top: 10px; }
+.sub-box { border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }
+.sub-box summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.sub-box[open] summary { color: var(--accent-2); }
+.sub-box .mix-body { padding-top: 8px; }
+.sub-box textarea {
+  width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: #12151d; color: var(--text); font: inherit; font-size: 12px; resize: vertical;
+}
+.sub-box select {
+  width: 100%; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line);
+  background: #12151d; color: var(--text); font: inherit; font-size: 12px;
+}
+/* Nút tím ở mức mờ mặc định vẫn còn ra dáng bấm được - phải bạc màu hẳn đi */
+.editor-page button:disabled { opacity: .4; filter: grayscale(.75); cursor: not-allowed; }
+#tool-pill { font-size: 11px; }
+#tool-pill.box { border-color: var(--warn); color: var(--warn); }
+
+/* ------------------------------------------------------------- timeline */
+.timeline {
+  grid-area: timeline; display: flex; gap: 0; background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+}
+.lane-labels { flex: none; width: 92px; border-right: 1px solid var(--line); background: var(--panel-2); }
+.lane-label {
+  height: 96px; display: flex; align-items: center; padding: 0 10px;
+  font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--line);
+}
+.lane-label.ruler-label { height: 24px; }
+/* Chuột đổi việc theo chế độ: bình thường kéo trượt timeline, mở mục gen đoạn
+   thì kéo trên dải audio gốc để chèn box. */
+.lanes { position: relative; flex: 1; min-width: 0; cursor: grab; user-select: none; }
+.lanes.panning { cursor: grabbing; }
+.lanes.tool-box .orig-lane { cursor: crosshair; }
+.lanes.tool-box .orig-lane::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--warn); opacity: .5;
+}
+.lane { display: block; width: 100%; border-bottom: 1px solid var(--line); }
+.lane.ruler { height: 24px; }
+.lane.wave { height: 96px; }
+.dub-lane, .orig-lane { position: relative; height: 96px; }
+.dub-lane .wave, .orig-lane .wave { position: absolute; inset: 0; width: 100%; height: 100%; }
+.regions, .marks { position: absolute; inset: 0; }
+
+/* ------------------------------- box gen lại, chèn trên dải audio gốc */
+.mark {
+  position: absolute; top: 6px; bottom: 6px; min-width: 6px; box-sizing: border-box;
+  border: 1.5px solid var(--warn); border-radius: 8px;
+  background: rgba(255,176,32,.15); cursor: grab;
+}
+.mark:hover { background: rgba(255,176,32,.24); }
+.mark.active { outline: 2px solid #fff; outline-offset: -2px; background: rgba(255,176,32,.3); z-index: 3; }
+.mark.dragging { cursor: grabbing; z-index: 4; }
+.mark.running { border-style: dashed; }
+.mark.done { border-color: var(--ok); background: rgba(46,213,115,.16); }
+.mark.error { border-color: var(--err); background: rgba(255,107,107,.16); }
+/* Box không trùm câu nào thì không gen được - phải nhìn là thấy ngay */
+.mark.empty {
+  border-color: var(--err); border-style: dashed; background: rgba(255,107,107,.1);
+}
+.mark.empty .m-label { color: var(--err); }
+.mark .m-label {
+  position: absolute; left: 8px; right: 22px; top: 2px; font-size: 10px; font-weight: 600;
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.mark .m-handle {
+  position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize;
+  background: var(--warn); opacity: .55; border-radius: 6px;
+}
+.mark .m-handle:hover, .mark.active .m-handle { opacity: 1; }
+.mark .m-handle.l { left: -1px; }
+.mark .m-handle.r { right: -1px; }
+.mark .m-del {
+  position: absolute; top: 1px; right: 8px; width: 15px; height: 15px; padding: 0; line-height: 13px;
+  border: 0; border-radius: 5px; background: rgba(0,0,0,.35); color: var(--text);
+  font-size: 12px; cursor: pointer;
+}
+.mark .m-del:hover { background: var(--err); color: #fff; }
+/* Box hẹp thì bỏ nhãn trước; nút xoá chỉ bỏ khi hẹp tới mức không còn chỗ */
+.mark.tiny .m-label { display: none; }
+.mark.mini .m-del { display: none; }
+
+.text-row { display: grid; gap: 4px; padding: 7px 0; border-top: 1px solid var(--line); }
+.text-row:first-child { border-top: 0; }
+.text-row .head { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.text-row .head b { color: var(--accent-2); }
+.text-row .src {
+  font-size: 11px; color: var(--muted); line-height: 1.4;
+  max-height: 46px; overflow: auto;
+}
+.text-row textarea { font-size: 12px; }
+.text-row.manual .head b::after { content: ' · tự gõ'; color: var(--ok); font-weight: 400; }
+.text-row.discovered .head b::after { content: ' · ASR dò ra'; color: var(--warn); font-weight: 400; }
+
+.mark-list { display: grid; gap: 4px; }
+.mark-item {
+  display: flex; align-items: stretch; gap: 0;
+  background: #12151d; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+}
+.mark-item:hover { border-color: var(--warn); }
+.mark-item.active { border-color: var(--warn); background: rgba(255,176,32,.12); }
+.mark-item .mark-pick {
+  flex: 1; display: flex; justify-content: space-between; gap: 10px; text-align: left;
+  padding: 6px 9px; font-size: 12px; cursor: pointer;
+  color: var(--text); background: none; border: 0;
+}
+.mark-item .meta { color: var(--muted); }
+.mark-item.done .meta { color: var(--ok); }
+.mark-item.error .meta { color: var(--err); }
+.mark-item .mark-del {
+  flex: none; width: 26px; padding: 0; border: 0; border-left: 1px solid var(--line);
+  background: none; color: var(--muted); font-size: 13px; cursor: pointer;
+}
+.mark-item .mark-del:hover { background: var(--err); color: #fff; }
+
+.playhead {
+  position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid #ff5470;
+  pointer-events: none; box-shadow: 0 0 6px rgba(255,84,112,.7);
+}
+
+/* ------------------------------------------------------------ box từng câu */
+.region {
+  position: absolute; top: 8px; bottom: 8px; min-width: 6px; box-sizing: border-box;
+  border: 1.5px solid var(--accent-2); border-radius: 8px;
+  background: rgba(108,92,231,.16); cursor: grab;
+}
+.region:hover { background: rgba(108,92,231,.26); }
+.region.selected { outline: 2px solid #fff; outline-offset: -2px; background: rgba(108,92,231,.34); z-index: 3; }
+.region.dragging { cursor: grabbing; z-index: 4; }
+.region.muted { opacity: .4; border-style: dashed; }
+.region.missing { border-color: var(--err); background: rgba(255,107,107,.14); }
+.region.fitted { border-color: var(--warn); }
+.region.overlap { box-shadow: inset 0 0 0 1px var(--err); }
+.region .label {
+  position: absolute; left: 6px; right: 14px; top: 2px; font-size: 10px; line-height: 1.3;
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.region .handle {
+  position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize;
+  background: var(--accent-2); opacity: .55; border-radius: 6px;
+}
+.region .handle:hover, .region.selected .handle { opacity: 1; }
+.region .handle.l { left: -1px; }
+.region .handle.r { right: -1px; }
+.region.tiny .label { display: none; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50;
+  padding: 10px 18px; border-radius: 10px; background: var(--panel-2);
+  border: 1px solid var(--accent); box-shadow: 0 8px 30px rgba(0,0,0,.45); font-size: 13px;
+}
+.toast.err { border-color: var(--err); color: var(--err); }
+.toast.ok { border-color: var(--ok); }

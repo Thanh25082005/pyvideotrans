@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chỉnh sửa lồng tiếng</title>
+<link rel="icon" href="/static/favicon.svg" />
+<link rel="stylesheet" href="/static/style.css" />
+<link rel="stylesheet" href="/static/editor.css" />
+</head>
+<body class="editor-page">
+<header class="topbar">
+  <div class="brand">
+    <a class="logo" href="/" title="Về trang chính">◍</a>
+    <div>
+      <h1 id="project-title">Chỉnh sửa lồng tiếng</h1>
+      <p id="project-sub">Kéo từng câu về đúng mốc, sửa lời, đọc lại đoạn hỏng rồi ghép lại video</p>
+    </div>
+  </div>
+  <div class="row wrap">
+    <span class="pill" id="save-state">đã lưu</span>
+    <button class="ghost" id="btn-render" type="button">Ghép lại video</button>
+    <a class="dl" id="btn-download" href="#" hidden>⬇ Tải bản đã sửa</a>
+  </div>
+</header>
+
+<!-- Chưa chọn project: danh sách các job đã chạy xong -->
+<main id="picker" class="picker" hidden>
+  <section class="card">
+    <div class="card-head"><h2>Chọn video để chỉnh sửa</h2></div>
+    <div class="card-body">
+      <p class="hint">Chỉ những job đã chạy xong mới có dữ liệu chỉnh sửa. Job cũ vẫn mở lại được sau khi restart server.</p>
+      <div id="picker-list" class="picker-list"></div>
+    </div>
+  </section>
+</main>
+
+<main id="workspace" class="workspace" hidden>
+  <section class="stage">
+    <div class="video-wrap">
+      <video id="video" playsinline></video>
+      <audio id="original-audio" hidden></audio>
+    </div>
+    <div class="transport">
+      <button class="primary" id="btn-play" type="button">▶</button>
+      <span class="mono" id="time-label">00:00.000 / 00:00.000</span>
+      <label class="inline"><span>Gốc</span>
+        <input id="vol-original" type="range" min="0" max="100" value="35" />
+      </label>
+      <label class="inline"><span>Lồng tiếng</span>
+        <input id="vol-dubbed" type="range" min="0" max="150" value="100" />
+      </label>
+      <label class="check"><input type="checkbox" id="follow" checked /> Cuộn theo</label>
+      <span class="pill" id="tool-pill">chuột: kéo trượt</span>
+      <span class="spacer"></span>
+      <button class="ghost small" id="zoom-out" type="button">−</button>
+      <button class="ghost small" id="zoom-in" type="button">+</button>
+      <button class="ghost small" id="zoom-fit" type="button">Vừa màn hình</button>
+    </div>
+  </section>
+
+  <aside class="inspector" id="inspector">
+    <div class="empty" id="inspector-empty">
+      <p>Bấm vào một câu ở dưới để sửa.</p>
+      <ul class="hint keys">
+        <li><b>Kéo thân box</b> — dời câu sang mốc khác</li>
+        <li><b>Kéo mép trái/phải</b> — đặt độ dài mong muốn</li>
+        <li><b>Space</b> phát/dừng · <b>←/→</b> dời 10ms (Shift: 100ms)</li>
+        <li><b>Lăn chuột</b> phóng to/thu nhỏ · <b>Shift+lăn</b> trượt ngang · <b>Ctrl+Z</b> hoàn tác</li>
+        <li><b>Kéo trên timeline</b> — trượt qua lại; mở «Gen lại cả một đoạn» thì kéo = chèn box</li>
+      </ul>
+    </div>
+    <div id="inspector-body" hidden>
+      <div class="row between">
+        <h3 id="seg-title">Câu 1</h3>
+        <span class="mono" id="seg-time"></span>
+      </div>
+      <div class="seg-orig" id="seg-source"></div>
+      <label>Lời lồng tiếng
+        <textarea id="seg-text" rows="4"></textarea>
+      </label>
+      <div class="grid-2">
+        <label>Tốc độ đọc <span class="val" id="seg-speed-val">1.00</span>
+          <input id="seg-speed" type="range" min="0.5" max="1.5" step="0.05" value="1" />
+        </label>
+        <label>Âm lượng câu <span class="val" id="seg-gain-val">100%</span>
+          <input id="seg-gain" type="range" min="0" max="200" step="5" value="100" />
+        </label>
+      </div>
+      <div class="row wrap">
+        <button class="primary" id="btn-regen" type="button">Đọc lại câu này</button>
+        <button class="ghost" id="btn-regen-fit" type="button">Đọc lại vừa khung</button>
+      </div>
+      <div class="row wrap">
+        <button class="ghost small" id="btn-reset-pos" type="button">Về mốc gốc</button>
+        <button class="ghost small" id="btn-fit-atempo" type="button">Ép vừa khung (atempo)</button>
+        <button class="ghost small" id="btn-clear-fit" type="button">Bỏ ép khung</button>
+        <label class="check"><input type="checkbox" id="seg-muted" /> Tắt tiếng câu này</label>
+      </div>
+      <p class="hint" id="seg-msg"></p>
+      <div class="seg-stats" id="seg-stats"></div>
+    </div>
+    <details class="mix-box" id="range-panel">
+      <summary>✂ Gen lại cả một đoạn</summary>
+      <div class="mix-body">
+        <p class="hint">Mở mục này là chuột chuyển sang <b>chèn box</b>: kéo ngang trên dải «Audio gốc» để tạo,
+          box kéo và co giãn được như box câu, chèn bao nhiêu cái cũng được.
+          Đóng lại (hoặc mở mục khác) thì chuột quay về <b>kéo trượt timeline</b>.</p>
+        <div class="row wrap">
+          <button class="ghost small" id="mark-add" type="button">＋ Chèn box</button>
+          <button class="ghost small" id="mark-from-seg" type="button">Box theo câu đang chọn</button>
+          <button class="ghost small" id="mark-clear" type="button">Xoá hết box</button>
+        </div>
+        <div class="mark-list" id="mark-list"></div>
+        <p class="hint" id="mark-note"></p>
+        <label class="check"><input type="checkbox" id="range-asr" /> Nhận dạng lại (ASR) chỗ trống trong box</label>
+        <label class="check"><input type="checkbox" id="range-translate" checked /> Dịch lại lời từ transcript gốc</label>
+        <label class="check"><input type="checkbox" id="range-fit" checked /> Đọc vừa khung gốc của từng câu</label>
+        <label class="check"><input type="checkbox" id="range-render" checked /> Ghép lại video ngay khi gen xong</label>
+
+        <details class="sub-box" id="range-texts">
+          <summary>Lời trong box — sửa tay trước khi đọc lại</summary>
+          <div class="mix-body">
+            <div id="range-text-list"></div>
+            <p class="hint">Sửa ở đây rồi gen với ô «Dịch lại lời» <b>tắt</b> thì nó đọc đúng lời bạn vừa sửa.</p>
+          </div>
+        </details>
+
+        <details class="sub-box" id="range-insert">
+          <summary>Chèn câu thủ công vào box</summary>
+          <div class="mix-body">
+            <textarea id="insert-text" rows="3" placeholder="Gõ lời cần đọc ở đoạn này…"></textarea>
+            <button class="ghost" id="btn-insert" type="button" disabled>Chèn câu &amp; đọc</button>
+            <p class="hint" id="insert-msg">Câu mới đặt ở đầu box đang chọn và đọc luôn. Lời tự gõ không bị bước «Dịch lại» ghi đè.</p>
+          </div>
+        </details>
+
+        <details class="sub-box" id="range-config">
+          <summary>Cấu hình giọng &amp; dịch cho lần gen này</summary>
+          <div class="mix-body">
+            <label>Voice lồng tiếng
+              <select id="range-voice"><option value="">— Voice mặc định trong cấu hình —</option></select>
+            </label>
+            <button class="ghost small" id="range-load-voices" type="button">Nạp danh sách voice</button>
+            <div class="grid-2">
+              <label>Tốc độ đọc <span class="val" id="range-speed-val">1.00</span>
+                <input id="range-speed" type="range" min="0.5" max="1.5" step="0.05" value="1" />
+              </label>
+              <label>Chất lượng giọng <span class="val" id="range-dit-val">16</span>
+                <input id="range-dit" type="range" min="1" max="64" step="1" value="16" />
+              </label>
+            </div>
+            <label>Chỉ thị dịch — dùng chung cho mọi box <span class="val" id="range-instr-count">0 / 4000</span>
+              <textarea id="range-instruction" rows="5"
+                placeholder="Để trống = dùng chỉ thị chung trong Cài đặt của trang chính.&#10;Ví dụ: xưng hô anh/em, giữ nguyên tên riêng, giọng văn tự nhiên."></textarea>
+            </label>
+            <p class="hint" id="range-cfg-msg">Các giá trị này được lưu vào project, lần sau mở lại vẫn còn.</p>
+          </div>
+        </details>
+
+        <div class="row wrap">
+          <button class="primary" id="btn-range-run" type="button" disabled>Gen box đang chọn</button>
+          <button class="ghost" id="btn-range-all" type="button" disabled>Gen tất cả box</button>
+        </div>
+        <p class="hint" id="range-msg">Transcript gốc và mốc từng câu được giữ nguyên, chỉ lời dịch và audio là mới.</p>
+      </div>
+    </details>
+    <details class="mix-box" id="mix-panel">
+      <summary>Trộn âm &amp; ghép lại</summary>
+      <div class="mix-body">
+        <label>Âm lượng nền <span class="val" id="mix-bg-val">0.90</span>
+          <input id="mix-bg" type="range" min="0" max="200" step="5" value="90" />
+        </label>
+        <label>Âm lượng giọng gốc <span class="val" id="mix-voice-val">0.00</span>
+          <input id="mix-voice" type="range" min="0" max="200" step="5" value="0" />
+        </label>
+        <label>Âm lượng lồng tiếng <span class="val" id="mix-dub-val">1.00</span>
+          <input id="mix-dub" type="range" min="0" max="200" step="5" value="100" />
+        </label>
+        <label class="check"><input type="checkbox" id="mix-original" /> Giữ audio gốc làm nền</label>
+        <label class="check"><input type="checkbox" id="mix-burn" /> Ghi phụ đề lên hình</label>
+        <label class="check"><input type="checkbox" id="mix-soft" /> Phụ đề mềm</label>
+        <div class="bar"><div class="bar-fill" id="render-bar"></div></div>
+        <p class="hint" id="render-msg">Các số này chỉ áp dụng khi bấm «Ghép lại video».</p>
+        <button class="link" id="btn-delete" type="button">Xoá dữ liệu chỉnh sửa của job này</button>
+      </div>
+    </details>
+  </aside>
+
+  <section class="timeline" id="timeline">
+    <div class="lane-labels">
+      <div class="lane-label ruler-label"></div>
+      <div class="lane-label">Audio gốc</div>
+      <div class="lane-label">Lồng tiếng</div>
+    </div>
+    <div class="lanes" id="lanes">
+      <canvas id="ruler" class="lane ruler"></canvas>
+      <div class="lane orig-lane">
+        <canvas id="wave-original" class="wave"></canvas>
+        <div class="marks" id="marks"></div>
+      </div>
+      <div class="lane dub-lane">
+        <canvas id="wave-dub" class="wave"></canvas>
+        <div class="regions" id="regions"></div>
+      </div>
+      <div class="playhead" id="playhead"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+<script src="/static/editor.js"></script>
+</body>
+</html>

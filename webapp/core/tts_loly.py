@@ -67,15 +67,24 @@ class LolyTTS:
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {self.api_key}"}
 
-    def _payload(self, text: str, language: str, speed: float, dit_steps: int, fmt: str) -> dict:
+    def _payload(self, text: str, language: str, speed: float, dit_steps: int, fmt: str,
+                 duration: Optional[float] = None) -> dict:
         body = {
             "text": text,
             "language": language or "auto",
             "format": fmt,
-            "speed": max(0.5, min(float(speed), 1.5)),
             "cfg_value": 2.0,
             "dit_steps": max(0, min(int(dit_steps), 64)),
         }
+        if duration is not None:
+            if not 0.5 <= float(duration) <= 30.0:
+                raise TtsError("duration phải nằm trong khoảng 0.5–30.0 giây", code="BAD_REQUEST", fatal=True)
+            # Theo contract, duration ghi đè speed. Tắt hậu xử lý để pipeline tự
+            # cắt silence và đo lại thời lượng thực tế.
+            body["duration"] = round(float(duration), 3)
+            body["postprocess_output"] = False
+        else:
+            body["speed"] = max(0.5, min(float(speed), 1.5))
         if self.is_account_key:
             if not self.voice_id:
                 raise TtsError("Account key vc_ak_live_* bắt buộc phải có voice_id", code="VOICE_ID_REQUIRED", fatal=True)
@@ -86,6 +95,7 @@ class LolyTTS:
 
     def synthesize(self, text: str, out_path: str | Path, language: str = "auto",
                    speed: float = 1.0, dit_steps: int = 10, fmt: str = "wav",
+                   duration: Optional[float] = None,
                    retries: int = 3) -> str:
         text = (text or "").strip()
         if not text:
@@ -96,7 +106,7 @@ class LolyTTS:
             text = text[:MAX_TEXT_LEN]
 
         url = f"{self.base_url}/api/v1/tts/bytes"
-        payload = self._payload(text, language, speed, dit_steps, fmt)
+        payload = self._payload(text, language, speed, dit_steps, fmt, duration=duration)
         last_error: Optional[Exception] = None
 
         for attempt in range(retries):

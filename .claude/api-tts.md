@@ -215,7 +215,8 @@ Content-Type: application/json
 | `voice_id` | string | Chỉ với account key | Bắt buộc khi dùng `vc_ak_live_*`. Với `vc_sk_live_*` thì bỏ trống; nếu gửi thì phải trùng voice của key |
 | `language` | string | Không | `auto`; chỉ `auto`, một code hoặc tên ngôn ngữ trong [catalog đầy đủ 646 ngôn ngữ](./tts-languages.md). Tên không phân biệt hoa/thường và được chuẩn hoá thành code. |
 | `format` | string | Không | `mp3`; chỉ `mp3` hoặc `wav`. Container/MIME trả về khớp giá trị này. |
-| `speed` | number | Không | `1.0`; clamp vào `0.5–1.5` |
+| `speed` | number | Không | `1.0`; clamp vào `0.5–1.5`. Bị bỏ qua khi có `duration` |
+| `duration` | number \| null | Không | `null` (model tự ước lượng độ dài từ text). Khi đặt: số giây, chỉ `0.5–30.0`. Xem [§5.1](#51-duration-ép-độ-dài-đầu-ra) |
 | `cfg_value` | finite number | Không | `2.0`; chỉ `0.0–4.0`, gồm cả `0` |
 | `dit_steps` | integer | Không | `10`; chỉ `0–64`, gồm cả `0` |
 | `do_normalize` | boolean | Không | `false` |
@@ -270,7 +271,58 @@ curl -X POST "https://studio.evomlabs.com/api/v1/tts/generate" \
 
 `chars_deducted` là **số credit đã trừ**, không phải độ dài text: ở ví dụ trên là `ceil(35 × 10/8) = 44`. Hai con số này chỉ trùng nhau khi `dit_steps` đúng bằng 8. Dùng field này để đối soát số dư thay vì tự đếm ký tự.
 
+`duration` **trong response** là một field khác với `duration` trong request. Nó dành cho độ dài audio đo được và hiện luôn là `null` — route không đo file sau khi ghi. Đừng đọc nó để xác nhận `duration` bạn gửi lên đã được áp dụng; muốn biết độ dài thật thì đo file tải về.
+
 `POST /generate` giữ response URL/R2 để tương thích. Dùng `/bytes` nếu caller cần audio bytes ngay trong response; dùng `/sse` hoặc WebSocket nếu cần frame PCM16 sớm hơn.
+
+## 5.1. `duration`: ép độ dài đầu ra
+
+Mặc định model tự ước lượng độ dài cần đọc từ chính văn bản. Gửi `duration` là chuyển sang chế độ ngược lại: bạn đưa ra độ dài, model đọc vừa đúng khoảng đó.
+
+```bash
+curl -X POST "https://studio.evomlabs.com/api/v1/tts/generate" \
+  -H "Authorization: Bearer vc_sk_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Xin chào, đây là một bản thử giọng.",
+    "language": "vi",
+    "format": "wav",
+    "duration": 4.5
+  }'
+```
+
+Bốn điều cần biết trước khi dùng:
+
+**`duration` ghi đè `speed`.** Không phải hai tham số cộng hưởng. Model quy `duration` thành số token audio đích rồi tự suy ra nhịp đọc từ đó, nên hệ số `speed` gửi kèm sẽ không có tác dụng nào. Gửi cả hai không phải lỗi, nhưng `speed` bị bỏ qua hoàn toàn.
+
+**Giá trị ngoài khoảng bị từ chối, không bị kéo về biên.** Khác `speed` — `speed: 9` được clamp về `1.5` và request vẫn chạy. `duration: 9000` trả `400 BAD_REQUEST`. Đây là chủ ý: một `duration` bị lặng lẽ đổi số rồi vẫn trả `200` sẽ phá đúng thứ mà tham số này sinh ra để bảo đảm.
+
+Trần `30.0` giây không tuỳ tiện: vượt ngưỡng đó OmniVoice chuyển sang đường sinh theo chunk và **ước lượng lại** độ dài cho từng chunk, nên cam kết "đúng N giây" không còn hiệu lực. API từ chối thay vì nhận một con số không giữ nổi.
+
+**File trả về không dài đúng bằng `duration`.** Con số này áp cho phần audio model sinh ra. Sau đó `postprocess_output` (mặc định `true`) cắt khoảng lặng thừa rồi chèn thêm 0,1 giây im lặng ở mỗi đầu file. Sai số thực tế thường trong khoảng vài trăm mili-giây. Cần khớp chính xác nhất thì gửi kèm `postprocess_output: false` và tự xử lý phần đầu/cuối.
+
+**Chỉ `/generate` và `/bytes` nhận tham số này.** [`/sse`](#7-text-to-speech-sse) và [WebSocket](#9-websocket-streaming) bỏ qua `duration`: hai transport đó cắt văn bản thành từng câu và mỗi câu là một lời gọi model riêng, nên một con số cho cả request không có chỗ áp vào cho đúng. Gửi kèm không gây lỗi, chỉ không có tác dụng.
+
+**`duration` nằm trong giá.** Nó quyết định model phải sinh bao nhiêu audio, mà đó chính là khối lượng công việc GPU. Số ký tự bị trừ là con số **lớn hơn** giữa hai cách ước lượng cùng khối lượng đó:
+
+```text
+ký_tự_tính_tiền = max( độ dài text , duration × ký_tự_mỗi_giây )
+credit           = ceil( ký_tự_tính_tiền × dit_steps / 8 )
+```
+
+`ký_tự_mỗi_giây` lấy theo hệ chữ viết của chính đoạn text bạn gửi, không phải một hằng số chung — một giây tiếng Anh hay tiếng Việt chứa khoảng 16–17 ký tự, một giây tiếng Trung chỉ khoảng 5,5.
+
+| text | `duration` | ký tự tính tiền | credit ở `dit_steps: 10` |
+|---|---:|---:|---:|
+| `"Xin chào"` (8 ký tự) | *không đặt* | 8 | 10 |
+| `"Xin chào"` | `30` | 470 | 588 |
+| 200 ký tự | *không đặt* | 200 | 250 |
+| 200 ký tự | `5` | 200 | 250 |
+| `"你好"` (2 ký tự) | `30` | 141 | 177 |
+
+Hai điều rút ra từ bảng: **không đặt `duration` thì giá không đổi một chút nào** so với trước, và đặt `duration` **ngắn hơn** nhịp đọc tự nhiên của text cũng không đổi giá — chỉ khi bạn yêu cầu audio dài hơn mức text tự nó cần thì mới trả thêm.
+
+`chars_deducted` trong response vì vậy có thể **lớn hơn** `text.length`. Đó vẫn đúng định nghĩa của field: số credit đã trừ, không phải số ký tự đã gửi.
 
 ## 6. Text-to-Speech bytes
 
@@ -280,7 +332,7 @@ Authorization: Bearer vc_sk_live_YOUR_KEY
 Content-Type: application/json
 ```
 
-Body có đúng toàn bộ field ở [§5](#5-batch-generation), gồm `voice_id` khi dùng account key. Đây là transport request/response: server hoàn tất generation rồi trả trực tiếp file, không ghi thêm bản durable vào R2 và không trả JSON success envelope.
+Body có đúng toàn bộ field ở [§5](#5-batch-generation), gồm `voice_id` khi dùng account key và `duration` ở [§5.1](#51-duration-ép-độ-dài-đầu-ra). Đây là transport request/response: server hoàn tất generation rồi trả trực tiếp file, không ghi thêm bản durable vào R2 và không trả JSON success envelope.
 
 Response `200` luôn là binary audio:
 
@@ -314,7 +366,7 @@ Accept: text/event-stream
 Content-Type: application/json
 ```
 
-Body dùng cùng field với §5. `format` vẫn được validate là `wav` hoặc `mp3` để các transport có cùng contract, nhưng SSE **luôn** phát PCM16 (`pcm_s16le`) vì chỉ dạng raw frame mới có thể đưa audio sớm qua text-only SSE. SSE không trả file URL; client ghép các `audio` event rồi tự phát PCM hoặc đóng gói WAV.
+Body dùng cùng field với §5, trừ `duration`: transport này cắt văn bản thành từng câu và sinh riêng từng câu, nên một độ dài cố định cho cả request không có chỗ áp vào — field vẫn được validate nhưng không có tác dụng. `format` vẫn được validate là `wav` hoặc `mp3` để các transport có cùng contract, nhưng SSE **luôn** phát PCM16 (`pcm_s16le`) vì chỉ dạng raw frame mới có thể đưa audio sớm qua text-only SSE. SSE không trả file URL; client ghép các `audio` event rồi tự phát PCM hoặc đóng gói WAV.
 
 Response thành công có `Content-Type: text/event-stream; charset=utf-8`, `Cache-Control: no-cache, no-store`, `X-Accel-Buffering: no` và `X-OriAgent-Chars-Deducted`. Vì request là `POST`, browser client dùng `fetch()` + `ReadableStream`; `EventSource` chỉ hỗ trợ GET nên không dùng được cho endpoint này.
 
@@ -412,6 +464,7 @@ Message đầu tiên từ client:
 | `language` | `auto`; `auto`, code hoặc tên trong [TTS language catalog](./tts-languages.md) |
 | `speed` | `1.0`, clamp `0.5–1.5` |
 | `control_instruction` | Chuỗi rỗng; bị bỏ qua khi stream dùng cloned-voice prompt |
+| `duration` | Không hỗ trợ trên WebSocket. Stream sinh theo từng câu nên không có độ dài cố định cho cả phiên; xem [§5.1](#51-duration-ép-độ-dài-đầu-ra) |
 | `cfg_value` | `2.0`, khoảng `0.0–4.0` |
 | `dit_steps` | `8`, khoảng `0–64` |
 | `use_prompt_text` | `false`; advanced compatibility field |

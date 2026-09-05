@@ -10,7 +10,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -67,6 +67,8 @@ def probe(path: str | Path) -> dict:
         "has_audio": audio is not None,
         "width": int(video.get("width", 0)) if video else 0,
         "height": int(video.get("height", 0)) if video else 0,
+        "channels": int(audio.get("channels", 0) or 0) if audio else 0,
+        "sample_rate": int(audio.get("sample_rate", 0) or 0) if audio else 0,
         "fps": fps,
         "video_codec": (video or {}).get("codec_name", ""),
         "pix_fmt": (video or {}).get("pix_fmt", ""),
@@ -111,6 +113,26 @@ def cut_audio(src: str | Path, start_ms: int, end_ms: int, out_path: str | Path,
     return str(out_path)
 
 
+def audio_layout(path: str | Path) -> Tuple[int, int]:
+    """(số kênh, sample rate) của luồng audio đầu tiên. (0, 0) nếu không có."""
+    try:
+        out = _run(
+            [FFPROBE, "-v", "quiet", "-select_streams", "a:0", "-print_format", "json",
+             "-show_streams", str(path)],
+            capture_stdout=True, timeout=60,
+        )
+        streams = json.loads(out.decode("utf-8", "ignore") or "{}").get("streams") or []
+    except (FFmpegError, ValueError):
+        return 0, 0
+    if not streams:
+        return 0, 0
+    return int(streams[0].get("channels", 0) or 0), int(streams[0].get("sample_rate", 0) or 0)
+
+
+def _layout_name(channels: int) -> str:
+    return "mono" if channels <= 1 else "stereo"
+
+
 def decode_pcm(path: str | Path, sample_rate: int = SAMPLE_RATE, channels: int = CHANNELS) -> np.ndarray:
     """Giải mã file audio bất kỳ thành mảng int16 mono."""
     raw = _run(
@@ -135,6 +157,28 @@ def write_wav(samples: np.ndarray, path: str | Path, sample_rate: int = SAMPLE_R
         tail = (proc.stderr or b"").decode("utf-8", "ignore").strip().splitlines()
         raise FFmpegError("\n".join(tail[-6:]))
     return str(path)
+
+
+def apply_volume(src: str | Path, out_path: str | Path, volume: float = 1.0) -> str:
+    """Đổi âm lượng một track, giữ nguyên số kênh và sample rate của nó."""
+    volume = max(0.0, min(float(volume), 4.0))
+    channels, rate = audio_layout(src)
+    run_ffmpeg([
+        "-y", "-i", str(src), "-filter:a", f"volume={volume:.3f}",
+        "-ac", str(channels or CHANNELS), "-ar", str(rate or SAMPLE_RATE),
+        "-c:a", "pcm_s16le", str(out_path),
+    ])
+    return str(out_path)
+
+
+def count_clipped(path: str | Path) -> Tuple[int, int]:
+    """(số mẫu chạm trần, tổng số mẫu). Dùng để cảnh báo thay vì âm thầm nén."""
+    # Đọc đúng sample rate và số kênh gốc: resample/downmix sẽ làm đỉnh đổi giá trị
+    channels, rate = audio_layout(path)
+    samples = decode_pcm(path, sample_rate=rate or SAMPLE_RATE, channels=channels or CHANNELS)
+    if samples.size == 0:
+        return 0, 0
+    return int((np.abs(samples.astype(np.int32)) >= 32767).sum()), int(samples.size)
 
 
 def atempo_chain(factor: float) -> str:
@@ -206,6 +250,58 @@ def mux(video: str | Path, audio: str | Path, out_path: str | Path,
     cmd.append(str(out_path))
     run_ffmpeg(cmd)
     return str(out_path)
+
+
+def mix_tracks(tracks: Sequence[Tuple[str | Path, float]], out_path: str | Path,
+               channels: Optional[int] = None, sample_rate: Optional[int] = None,
+               limiter: bool = False) -> str:
+    """Trộn nhiều track, mỗi track một hệ số âm lượng riêng.
+
+    Track có âm lượng 0 bị bỏ hẳn khỏi filter thay vì nhân 0 - đỡ một lần giải mã
+    và tránh việc `duration=longest` bị kéo dài bởi một track câm.
+
+    Layout lấy theo track ĐẦU TIÊN (nền), nên phim stereo 44,1kHz ra đúng stereo
+    44,1kHz. `normalize=0` để con số âm lượng đúng nghĩa: mặc định của amix là
+    chia biên độ cho số input, tức là đặt 1.0 vẫn bị hạ tiếng.
+    """
+    active = [(Path(src), max(0.0, min(float(vol), 4.0)))
+              for src, vol in tracks if src and float(vol or 0) > 0.0005]
+    if not active:
+        raise FFmpegError("mix_tracks: không còn track nào có âm lượng > 0")
+
+    ref_channels, ref_rate = audio_layout(active[0][0])
+    channels = int(channels or ref_channels or CHANNELS)
+    sample_rate = int(sample_rate or ref_rate or SAMPLE_RATE)
+    layout = _layout_name(channels)
+    channels = 1 if layout == "mono" else 2
+    fmt = f"aformat=sample_fmts=fltp:channel_layouts={layout}:sample_rates={sample_rate}"
+
+    cmd: List[str] = ["-y"]
+    for src, _ in active:
+        cmd += ["-i", str(src)]
+    parts = [f"[{i}:a]volume={vol:.3f},{fmt}[a{i}]" for i, (_, vol) in enumerate(active)]
+    labels = "".join(f"[a{i}]" for i in range(len(active)))
+    if len(active) == 1:
+        chain = parts[0].replace(f"[a0]", "[mixed]")
+    else:
+        chain = ";".join(parts) + (
+            f";{labels}amix=inputs={len(active)}:duration=longest:"
+            "dropout_transition=0:normalize=0[mixed]")
+    chain += ";[mixed]alimiter=limit=0.97:level=disabled[out]" if limiter else ";[mixed]anull[out]"
+    run_ffmpeg(cmd + [
+        "-filter_complex", chain, "-map", "[out]",
+        "-ac", str(channels), "-ar", str(sample_rate), "-c:a", "pcm_s16le", str(out_path),
+    ])
+    return str(out_path)
+
+
+def mix_audio(dubbed: str | Path, original: str | Path, out_path: str | Path,
+              original_volume: float = 0.35, dubbed_volume: float = 1.0,
+              channels: Optional[int] = None, sample_rate: Optional[int] = None,
+              limiter: bool = False) -> str:
+    """Trộn track lồng tiếng lên trên một track nền (bọc mix_tracks cho gọn)."""
+    return mix_tracks([(original, original_volume), (dubbed, dubbed_volume)],
+                      out_path, channels=channels, sample_rate=sample_rate, limiter=limiter)
 
 
 def audio_only_output(audio: str | Path, out_path: str | Path) -> str:
